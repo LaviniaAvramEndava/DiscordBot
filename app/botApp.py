@@ -4,10 +4,50 @@ from discord.ext import commands
 from .gamesLogic import RPS_CHOICES, rps_outcome, GuessSessions
 from .store import Store
 
+
 def create_bot(store: Store, sessions: GuessSessions) -> commands.Bot:
+
     intents = discord.Intents.default()
     intents.message_content = True
     bot = commands.Bot(command_prefix="$", intents=intents, help_command=None)
+
+    @bot.command()
+    async def poll(ctx, question: str, *options: str):
+        if len(options) < 2:
+            await ctx.send("You must provide at least 2 options for the poll.")
+            return
+        if len(options) > 10:
+            await ctx.send("You can provide at most 10 options.")
+            return
+        emojis = [
+            "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣",
+            "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"
+        ]
+        description = "\n".join(f"{emojis[i]} {opt}" for i, opt in enumerate(options))
+        embed = discord.Embed(title=question, description=description, color=0x00ff00)
+        poll_message = await ctx.send(embed=embed)
+        for i in range(len(options)):
+            await poll_message.add_reaction(emojis[i])
+        # Store poll in persistent storage
+        poll_id = str(poll_message.id)
+        store.add_poll(poll_id, question, list(options))
+        await ctx.send(f"Poll created! Vote by reacting below.")
+
+    @bot.event
+    async def on_message(message):
+        if message.author.bot:
+            return
+        greetings = ["hello", "hi", "hey", "salut", "hola"]
+        if any(message.content.lower().startswith(greet) for greet in greetings):
+            responses = [
+                f"Hello, {message.author.display_name}!",
+                f"Hi there, {message.author.display_name}!",
+                f"Hey, {message.author.display_name}!",
+                f"Salut, {message.author.display_name}!",
+                f"Hola, {message.author.display_name}!"
+            ]
+            await message.channel.send(random.choice(responses))
+        await bot.process_commands(message)
 
     @bot.event
     async def on_ready():
@@ -20,7 +60,8 @@ def create_bot(store: Store, sessions: GuessSessions) -> commands.Bot:
             "• `$roll` – Roll a die\n"
             "• `$rps <rock|paper|scissors>` – Rock–Paper–Scissors\n"
             "• `$guess start` / `$guess <number>` / `$guess stop`\n"
-            "• `$leaderboard` – Show top winners"
+            "• `$leaderboard` – Show top winners\n"
+            "• `$poll \"Your question?\" \"Option 1\" \"Option 2\" ...` – Create a poll (up to 10 options)"
         )
 
     @bot.command()

@@ -17,10 +17,8 @@ class Store:
     def save(self):
         self.path.write_text(json.dumps(self.data, indent=2), encoding="utf-8")
 
-
     def add_win(self, user_id: int, username: str = None, amount: int = 1):
         uid = str(user_id)
-        # Save username if provided
         if "users" not in self.data:
             self.data["users"] = {}
         if username:
@@ -34,3 +32,21 @@ class Store:
 
     def wins(self):
         return self.data.get("wins", {})
+
+    def add_poll(self, poll_id: str, question: str, options: list):
+        if "polls" not in self.data:
+            self.data["polls"] = {}
+        self.data["polls"][poll_id] = {
+            "question": question,
+            "options": options,
+            "votes": [0] * len(options)
+        }
+        self.save()
+
+    def vote_poll(self, poll_id: str, option_index: int):
+        if "polls" in self.data and poll_id in self.data["polls"]:
+            self.data["polls"][poll_id]["votes"][option_index] += 1
+            self.save()
+
+    def get_polls(self):
+        return self.data.get("polls", {})
